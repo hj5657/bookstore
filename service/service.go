@@ -3,9 +3,11 @@ package service
 import (
 	"bookstore/service/middleware"
 	"bookstore/store"
+	"context"
 	"encoding/json"
 	"github.com/gorilla/mux"
 	"net/http"
+	"time"
 )
 
 type BookStoreServer struct {
@@ -110,4 +112,24 @@ func (bs BookStoreServer) delBookHandler(writer http.ResponseWriter, request *ht
 		http.Error(writer, err.Error(), http.StatusBadRequest)
 		return
 	}
+}
+
+func (bs BookStoreServer) ListenAndServe() (<-chan error, error) {
+	var err error
+	errChan := make(chan error)
+	go func() {
+		err = bs.srv.ListenAndServe()
+		errChan <- err
+	}()
+	select {
+	case err = <-errChan:
+		return nil, err
+	case <-time.After(time.Second):
+		return errChan, nil
+	}
+}
+
+func (bs BookStoreServer) Shutdown(ctx context.Context) error {
+	err := bs.srv.Shutdown(ctx)
+	return err
 }
